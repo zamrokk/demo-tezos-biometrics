@@ -17,22 +17,35 @@ const Home: React.FC = () => {
 
     const isFaceID = result.biometryType == BiometryType.FACE_ID;
 
-    const verified = await NativeBiometric.verifyIdentity({
-      reason: "For easy log in",
-      title: "Log in",
-      subtitle: "Maybe add subtitle here?",
-      description: "Maybe a description too?",
-    })
-      .then(() => true)
-      .catch(() => false);
+    try {
+      await NativeBiometric.verifyIdentity({
+        reason: "For easy log in",
+        title: "Log in",
+        subtitle: "Maybe add subtitle here?",
+        description: "Maybe a description too?",
+      });
 
-    if (!verified) return;
+      let credentials = await NativeBiometric.getCredentials({
+        server: "www.example.com",
+      });
 
-    const credentials = await NativeBiometric.getCredentials({
-      server: "www.example.com",
-    });
+      console.log("credentials", JSON.stringify(credentials));
 
-    alert("credentials" + JSON.stringify(credentials));
+      NativeBiometric.setCredentials({
+        username: "username",
+        password: "password",
+        server: "www.example.com",
+      });
+
+      credentials = await NativeBiometric.getCredentials({
+        server: "www.example.com",
+      });
+
+      console.log("credentials AFTER", JSON.stringify(credentials));
+    } catch (error) {
+      console.log("Biometrics failed");
+      return;
+    }
   };
 
   return (
@@ -49,28 +62,28 @@ const Home: React.FC = () => {
           </IonToolbar>
         </IonHeader>
 
-        <IonButton
-          onClick={() =>
-            NativeBiometric.setCredentials({
-              username: "username",
-              password: "password",
-              server: "www.example.com",
-            })
-          }
-        >
-          setCredentials
-        </IonButton>
-
         <IonButton onClick={performBiometricVerification}>
           performBiometricVerification
         </IonButton>
 
         <IonButton
-          onClick={() =>
-            NativeBiometric.deleteCredentials({
+          onClick={async () => {
+            let credentials = await NativeBiometric.getCredentials({
               server: "www.example.com",
-            })
-          }
+            });
+
+            console.log("credentials", JSON.stringify(credentials));
+
+            await NativeBiometric.deleteCredentials({
+              server: "www.example.com",
+            });
+
+            credentials = await NativeBiometric.getCredentials({
+              server: "www.example.com",
+            });
+
+            console.log("credentials AFTER", JSON.stringify(credentials));
+          }}
         >
           deleteCredentials
         </IonButton>
