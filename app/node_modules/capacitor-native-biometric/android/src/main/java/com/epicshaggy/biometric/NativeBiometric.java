@@ -49,7 +49,7 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import android.annotation.SuppressLint;
-
+import android.util.Log;
 
 
 @CapacitorPlugin(name = "NativeBiometric")
@@ -116,6 +116,11 @@ public class NativeBiometric extends Plugin {
         // Using deviceHasCredentials instead of canAuthenticate(DEVICE_CREDENTIAL)
         // > "Developers that wish to check for the presence of a PIN, pattern, or password on these versions should instead use isDeviceSecure."
         // @see https://developer.android.com/reference/androidx/biometric/BiometricManager#canAuthenticate(int)
+
+        Log.w("canAuthenticateResult",canAuthenticateResult+"");
+        Log.w("deviceHasCredentials",this.deviceHasCredentials()+"");
+        Log.w("useFallback",useFallback+"");
+
         boolean fallbackAvailable = useFallback && this.deviceHasCredentials();
         if (useFallback && !fallbackAvailable) {
             canAuthenticateResult = BiometricConstants.ERROR_NO_DEVICE_CREDENTIAL;
@@ -124,10 +129,14 @@ public class NativeBiometric extends Plugin {
         boolean isAvailable = (canAuthenticateResult == BiometricManager.BIOMETRIC_SUCCESS || fallbackAvailable);
         ret.put("isAvailable", isAvailable);
 
+        Log.w("isAvailable",isAvailable+"");
+
         if (!isAvailable) {
             // BiometricManager Error Constants use the same values as BiometricPrompt's Constants. So we can reuse our
             int pluginErrorCode = AuthActivity.convertToPluginErrorCode(canAuthenticateResult);
             ret.put("errorCode", pluginErrorCode);
+            Log.w("errorCode",pluginErrorCode+"");
+
         }
 
         ret.put("biometryType", getAvailableFeature());

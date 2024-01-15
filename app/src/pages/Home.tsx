@@ -6,12 +6,24 @@ import {
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
-import { BiometryType, NativeBiometric } from "capacitor-native-biometric";
+import {
+  BiometryType,
+  Credentials,
+  NativeBiometric,
+} from "capacitor-native-biometric";
+import { useState } from "react";
 import "./Home.css";
 
 const Home: React.FC = () => {
+  const [credentials, setCredentials] = useState<Credentials>({
+    username: "",
+    password: "",
+  });
+
   const performBiometricVerification = async () => {
     const result = await NativeBiometric.isAvailable();
+
+    console.log("isAvailable", result);
 
     if (!result.isAvailable) return;
 
@@ -23,6 +35,7 @@ const Home: React.FC = () => {
         title: "Log in",
         subtitle: "Maybe add subtitle here?",
         description: "Maybe a description too?",
+        useFallback: true,
       });
 
       NativeBiometric.setCredentials({
@@ -31,9 +44,11 @@ const Home: React.FC = () => {
         server: "www.example.com",
       });
 
-      let credentials = await NativeBiometric.getCredentials({
-        server: "www.example.com",
-      });
+      setCredentials(
+        await NativeBiometric.getCredentials({
+          server: "www.example.com",
+        })
+      );
 
       console.log("credentials AFTER", JSON.stringify(credentials));
     } catch (error) {
@@ -62,25 +77,28 @@ const Home: React.FC = () => {
 
         <IonButton
           onClick={async () => {
-            let credentials = await NativeBiometric.getCredentials({
-              server: "www.example.com",
-            });
-
-            console.log("credentials", JSON.stringify(credentials));
-
             await NativeBiometric.deleteCredentials({
               server: "www.example.com",
             });
 
-            credentials = await NativeBiometric.getCredentials({
-              server: "www.example.com",
-            });
-
-            console.log("credentials AFTER", JSON.stringify(credentials));
+            try {
+              await NativeBiometric.getCredentials({
+                server: "www.example.com",
+              });
+            } catch (error) {
+              setCredentials({
+                password: "",
+                username: "",
+              });
+            }
           }}
         >
           deleteCredentials
         </IonButton>
+
+        <div>Credentials :</div>
+        <div>username : {credentials.username}</div>
+        <div>password : {credentials.password}</div>
       </IonContent>
     </IonPage>
   );

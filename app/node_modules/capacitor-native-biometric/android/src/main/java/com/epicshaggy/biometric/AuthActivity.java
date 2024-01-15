@@ -66,6 +66,9 @@ public class AuthActivity extends AppCompatActivity {
         BiometricPrompt biometricPrompt = new BiometricPrompt(this, executor, new BiometricPrompt.AuthenticationCallback() {
             @Override
             public void onAuthenticationError(int errorCode, @NonNull CharSequence errString) {
+
+                Log.w("onAuthenticationError",errorCode+" - "+errString);
+
                 super.onAuthenticationError(errorCode, errString);
                 int pluginErrorCode = AuthActivity.convertToPluginErrorCode(errorCode);
                 finishActivity("error", pluginErrorCode, errString.toString());
@@ -73,12 +76,24 @@ public class AuthActivity extends AppCompatActivity {
 
             @Override
             public void onAuthenticationSucceeded(@NonNull BiometricPrompt.AuthenticationResult result) {
+
+                Log.w("onAuthenticationSucceed",result.getCryptoObject()+"");
+
+
                 super.onAuthenticationSucceeded(result);
+
+
+
                 finishActivity("success");
             }
 
             @Override
             public void onAuthenticationFailed() {
+
+
+                Log.w("onAuthenticationFailed","");
+
+
                 super.onAuthenticationFailed();
                 counter++;
                 if(counter == maxAttempts)
@@ -95,6 +110,10 @@ public class AuthActivity extends AppCompatActivity {
     }
 
     void finishActivity(String result, Integer errorCode, String errorDetails) {
+
+
+        Log.w("finishActivity",result);
+
         Intent intent = new Intent();
         intent.putExtra("result", result);
         if (errorCode != null) {
