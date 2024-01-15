@@ -25,19 +25,13 @@ const Home: React.FC = () => {
         description: "Maybe a description too?",
       });
 
-      let credentials = await NativeBiometric.getCredentials({
-        server: "www.example.com",
-      });
-
-      console.log("credentials", JSON.stringify(credentials));
-
       NativeBiometric.setCredentials({
         username: "username",
         password: "password",
         server: "www.example.com",
       });
 
-      credentials = await NativeBiometric.getCredentials({
+      let credentials = await NativeBiometric.getCredentials({
         server: "www.example.com",
       });
 
