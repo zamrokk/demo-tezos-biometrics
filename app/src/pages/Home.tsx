@@ -32,6 +32,8 @@ const Home: React.FC = () => {
 
     console.log("keyBytes", keyBytes);
 
+    console.log("prefix[Prefix.EDSK]", prefix[Prefix.EDSK]);
+
     const key = b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDSK]);
 
     console.log("key", key);
