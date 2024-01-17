@@ -6,54 +6,83 @@ import {
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
-import {
-  BiometryType,
-  Credentials,
-  NativeBiometric,
-} from "capacitor-native-biometric";
+import { InMemorySigner } from "@taquito/signer";
+import { TezosToolkit } from "@taquito/taquito";
+import { Credentials, NativeBiometric } from "capacitor-native-biometric";
 import { useState } from "react";
 import "./Home.css";
 
 const Home: React.FC = () => {
+  const Tezos = new TezosToolkit("https://ghostnet.tezos.marigold.dev");
+
   const [credentials, setCredentials] = useState<Credentials>({
     username: "",
     password: "",
   });
 
-  const performBiometricVerification = async () => {
+  const [userBalance, setUserBalance] = useState<number>(0);
+
+  const [signer, setSigner] = useState<InMemorySigner>();
+
+  const generateCredentials = async () => {
+    const keyBytes = Buffer.alloc(32);
+    // crypto.randomFillSync(keyBytes);
+
+    const key = ""; // b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDESK]);
+    const signer = new InMemorySigner(key);
+    setSigner(signer);
+    const pkh = await signer.publicKeyHash();
+
+    const userBalance = await Tezos.tz.getBalance(pkh);
+    setUserBalance(userBalance.toNumber());
+
+    setCredentials({
+      username: pkh,
+      password: key,
+    });
+  };
+
+  const saveEncryptedKeyPairWithBiometrics = async () => {
     const result = await NativeBiometric.isAvailable();
 
-    console.log("isAvailable", result);
+    console.log("NativeBiometric.isAvailable", result);
 
     if (!result.isAvailable) return;
 
-    const isFaceID = result.biometryType == BiometryType.FACE_ID;
-
     try {
       await NativeBiometric.verifyIdentity({
-        reason: "For easy log in",
+        reason: "It is required to access to encrypted data on Keystore",
         title: "Log in",
-        subtitle: "Maybe add subtitle here?",
-        description: "Maybe a description too?",
-        useFallback: true,
+        subtitle: "(required)",
+        description:
+          "Biometric step to be able to store encrypted keypair on Keystore and decrypt it",
       });
 
       NativeBiometric.setCredentials({
-        username: "username",
-        password: "password",
-        server: "www.example.com",
+        username: credentials.username,
+        password: credentials.password,
+        server: "TEZOS",
       });
 
-      setCredentials(
-        await NativeBiometric.getCredentials({
-          server: "www.example.com",
-        })
-      );
-
-      console.log("credentials AFTER", JSON.stringify(credentials));
+      console.log("Successfully store encrypted Keypair");
     } catch (error) {
       console.log("Biometrics failed");
       return;
+    }
+  };
+
+  const transfer = async () => {
+    try {
+      const op = await Tezos.contract.transfer({
+        to: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb",
+        amount: 1,
+        mutez: true,
+      });
+      console.log("Transfer sent to alice");
+      const opHash = await op.confirmation(1);
+      console.log("Confirmed go to https://ghostnet.tzkt.io/", opHash);
+    } catch (error) {
+      console.error("Error", error);
     }
   };
 
@@ -70,11 +99,12 @@ const Home: React.FC = () => {
             <IonTitle size="large">Blank</IonTitle>
           </IonToolbar>
         </IonHeader>
-
-        <IonButton onClick={performBiometricVerification}>
-          performBiometricVerification
+        <IonButton onClick={generateCredentials}>
+          Generate TEZOS keypair
         </IonButton>
-
+        <IonButton onClick={saveEncryptedKeyPairWithBiometrics}>
+          Save keypair with Biometrics
+        </IonButton>
         <IonButton
           onClick={async () => {
             await NativeBiometric.deleteCredentials({
@@ -93,12 +123,25 @@ const Home: React.FC = () => {
             }
           }}
         >
-          deleteCredentials
+          Remove keypair
         </IonButton>
-
-        <div>Credentials :</div>
-        <div>username : {credentials.username}</div>
-        <div>password : {credentials.password}</div>
+        <div>Keypair :</div>
+        <div>PKH : {credentials.username}</div>
+        <div>PrivKey : {credentials.password}</div>
+        <div>
+          Balance : {userBalance}
+          {"mutez "}
+          <IonButton
+            onClick={async () =>
+              setUserBalance(
+                (await Tezos.tz.getBalance(credentials.username)).toNumber()
+              )
+            }
+          >
+            Refresh balance
+          </IonButton>
+        </div>
+        <IonButton onClick={transfer}>Send money to alice</IonButton>
       </IonContent>
     </IonPage>
   );
