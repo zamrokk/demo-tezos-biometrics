@@ -6,7 +6,7 @@ import {
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
-import { InMemorySigner } from "@taquito/signer";
+import { InMemorySigner, importKey } from "@taquito/signer";
 import { TezosToolkit } from "@taquito/taquito";
 import { Prefix, b58cencode, prefix } from "@taquito/utils";
 import { Credentials, NativeBiometric } from "capacitor-native-biometric";
@@ -34,14 +34,14 @@ const Home: React.FC = () => {
 
     console.log("prefix[Prefix.EDSK]", prefix[Prefix.EDSK].toString());
 
-    const key =
-      Prefix.EDSK + b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDSK]);
+    const key = b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDSK]);
 
     console.log("key", key);
 
-    const signer = new InMemorySigner(key);
+    await importKey(Tezos, key);
+
     setSigner(signer);
-    const pkh = await signer.publicKeyHash();
+    const pkh = await Tezos.signer.publicKeyHash();
 
     const userBalance = await Tezos.tz.getBalance(pkh);
     setUserBalance(userBalance.toNumber());
