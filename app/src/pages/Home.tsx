@@ -30,7 +30,12 @@ const Home: React.FC = () => {
     const keyBytes = Buffer.alloc(32);
     crypto.randomFillSync(keyBytes);
 
+    console.log("keyBytes", keyBytes);
+
     const key = b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDSK]);
+
+    console.log("key", key);
+
     const signer = new InMemorySigner(key);
     setSigner(signer);
     const pkh = await signer.publicKeyHash();
