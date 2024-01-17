@@ -7,12 +7,7 @@ export default ({ command }) => {
 
   return defineConfig({
     define: {
-      "process.title": "browser",
-      "process.browser": true,
-      "process.env": {},
-      "process.argv": [],
-      "process.version": "", // empty string to avoid regexp issues
-      "process.versions": {},
+      process: { env: { NODE_ENV: "development" } },
       //global: {}
     },
     plugins: [react()],
