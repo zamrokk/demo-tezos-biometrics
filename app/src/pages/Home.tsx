@@ -30,9 +30,9 @@ const Home: React.FC = () => {
     const keyBytes = Buffer.alloc(32);
     crypto.randomFillSync(keyBytes);
 
-    console.log("keyBytes", keyBytes);
+    console.log("keyBytes", keyBytes.toString());
 
-    console.log("prefix[Prefix.EDSK]", prefix[Prefix.EDSK]);
+    console.log("prefix[Prefix.EDSK]", prefix[Prefix.EDSK].toString());
 
     const key = b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDSK]);
 
