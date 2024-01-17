@@ -15,7 +15,9 @@ import { useState } from "react";
 import "./Home.css";
 
 const Home: React.FC = () => {
-  const Tezos = new TezosToolkit("https://ghostnet.tezos.marigold.dev");
+  const [Tezos, setTezos] = useState<TezosToolkit>(
+    new TezosToolkit("https://ghostnet.tezos.marigold.dev")
+  );
 
   const [credentials, setCredentials] = useState<Credentials>({
     username: "",
@@ -41,6 +43,7 @@ const Home: React.FC = () => {
     const signer = new InMemorySigner(key);
     setSigner(signer);
     Tezos.setSignerProvider(signer);
+    setTezos(Tezos);
 
     const pkh = await Tezos.signer.publicKeyHash();
 
@@ -84,6 +87,8 @@ const Home: React.FC = () => {
 
   const transfer = async () => {
     try {
+      console.log("Tezos.signer", Tezos.signer);
+
       const op = await Tezos.contract.transfer({
         to: "tz1VSUr8wwNhLAzempoch5d6hLRiTh8Cjcjb",
         amount: 1,
