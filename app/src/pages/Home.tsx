@@ -8,7 +8,9 @@ import {
 } from "@ionic/react";
 import { InMemorySigner } from "@taquito/signer";
 import { TezosToolkit } from "@taquito/taquito";
+import { Prefix, b58cencode, prefix } from "@taquito/utils";
 import { Credentials, NativeBiometric } from "capacitor-native-biometric";
+import * as crypto from "crypto";
 import { useState } from "react";
 import "./Home.css";
 
@@ -26,9 +28,9 @@ const Home: React.FC = () => {
 
   const generateCredentials = async () => {
     const keyBytes = Buffer.alloc(32);
-    // crypto.randomFillSync(keyBytes);
+    crypto.randomFillSync(keyBytes);
 
-    const key = ""; // b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDESK]);
+    const key = b58cencode(new Uint8Array(keyBytes), prefix[Prefix.EDESK]);
     const signer = new InMemorySigner(key);
     setSigner(signer);
     const pkh = await signer.publicKeyHash();
