@@ -6,7 +6,7 @@ import {
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
-import { InMemorySigner, importKey } from "@taquito/signer";
+import { InMemorySigner } from "@taquito/signer";
 import { TezosToolkit } from "@taquito/taquito";
 import { Prefix, b58cencode, prefix } from "@taquito/utils";
 import { Credentials, NativeBiometric } from "capacitor-native-biometric";
@@ -38,9 +38,10 @@ const Home: React.FC = () => {
 
     console.log("key", key);
 
-    await importKey(Tezos, key);
-
+    const signer = new InMemorySigner(key);
     setSigner(signer);
+    Tezos.setSignerProvider(signer);
+
     const pkh = await Tezos.signer.publicKeyHash();
 
     const userBalance = await Tezos.tz.getBalance(pkh);
