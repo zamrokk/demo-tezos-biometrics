@@ -64,7 +64,6 @@ const Home: React.FC = () => {
     if (!result.isAvailable) return;
 
     try {
-      /*
       await NativeBiometric.verifyIdentity({
         reason: "It is required to access to encrypted data on Keystore",
         title: "Log in",
@@ -72,7 +71,9 @@ const Home: React.FC = () => {
         description:
           "Biometric step to be able to store encrypted keypair on Keystore and decrypt it",
       });
-*/
+
+      console.log("Biometrics unlocked, settings credentials now");
+
       await NativeBiometric.setCredentials({
         username: credentials.username,
         password: credentials.password,
