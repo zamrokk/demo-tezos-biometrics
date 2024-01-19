@@ -64,6 +64,7 @@ const Home: React.FC = () => {
     if (!result.isAvailable) return;
 
     try {
+      /*
       await NativeBiometric.verifyIdentity({
         reason: "It is required to access to encrypted data on Keystore",
         title: "Log in",
@@ -71,7 +72,7 @@ const Home: React.FC = () => {
         description:
           "Biometric step to be able to store encrypted keypair on Keystore and decrypt it",
       });
-
+*/
       await NativeBiometric.setCredentials({
         username: credentials.username,
         password: credentials.password,
@@ -80,7 +81,7 @@ const Home: React.FC = () => {
 
       console.log("Successfully store encrypted Keypair");
     } catch (error) {
-      console.log("Biometrics failed");
+      console.log("Biometrics failed", error);
       return;
     }
   };
@@ -124,12 +125,12 @@ const Home: React.FC = () => {
         <IonButton
           onClick={async () => {
             await NativeBiometric.deleteCredentials({
-              server: "www.example.com",
+              server: "TEZOS",
             });
 
             try {
               await NativeBiometric.getCredentials({
-                server: "www.example.com",
+                server: "TEZOS",
               });
             } catch (error) {
               setCredentials({
