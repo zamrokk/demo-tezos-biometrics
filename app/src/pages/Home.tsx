@@ -72,7 +72,7 @@ const Home: React.FC = () => {
           "Biometric step to be able to store encrypted keypair on Keystore and decrypt it",
       });
 
-      NativeBiometric.setCredentials({
+      await NativeBiometric.setCredentials({
         username: credentials.username,
         password: credentials.password,
         server: "TEZOS",
