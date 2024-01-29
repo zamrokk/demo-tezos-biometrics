@@ -6,12 +6,11 @@ import {
   IonTitle,
   IonToolbar,
 } from "@ionic/react";
-import { InMemorySigner } from "@taquito/signer";
+
 import { TezosToolkit } from "@taquito/taquito";
-import { Prefix, b58cencode, prefix } from "@taquito/utils";
-import { Credentials, NativeBiometric } from "capacitor-native-biometric";
-import * as crypto from "crypto";
-import { useState } from "react";
+import { NativeBiometric } from "capacitor-native-biometric";
+import { useEffect, useState } from "react";
+import { BiometricsSigner } from "../taquito-biometrics-signer";
 import "./Home.css";
 
 const Home: React.FC = () => {
@@ -19,73 +18,45 @@ const Home: React.FC = () => {
     new TezosToolkit("https://ghostnet.tezos.marigold.dev")
   );
 
-  const [credentials, setCredentials] = useState<Credentials>({
-    username: "",
-    password: "",
-  });
+  const [publicKey, setPublicKey] = useState<string | undefined>();
+  const [publicKeyHash, setPublicKeyHash] = useState<string | undefined>();
 
   const [userBalance, setUserBalance] = useState<number>(0);
 
-  const [signer, setSigner] = useState<InMemorySigner>();
+  const [signer, setSigner] = useState<BiometricsSigner>();
 
-  const generateCredentials = async () => {
-    const keyBytes = Buffer.alloc(32);
-    crypto.randomFillSync(keyBytes);
+  useEffect(() => {
+    (async () => {
+      if (publicKey) setPublicKeyHash(await signer?.publicKeyHash());
+    })();
+  }, [publicKey]);
 
-    console.log("keyBytes", keyBytes.toString());
-
-    console.log("prefix[Prefix.P2SK]", prefix[Prefix.P2SK].toString());
-
-    const key = b58cencode(new Uint8Array(keyBytes), prefix[Prefix.P2SK]);
-
-    console.log("key", key);
-
-    const signer = new InMemorySigner(key);
-    setSigner(signer);
-    Tezos.setSignerProvider(signer);
-    setTezos(Tezos);
-
-    const pkh = await Tezos.signer.publicKeyHash();
-
-    const userBalance = await Tezos.tz.getBalance(pkh);
-    setUserBalance(userBalance.toNumber());
-
-    setCredentials({
-      username: pkh,
-      password: key,
-    });
-  };
-
-  const saveEncryptedKeyPairWithBiometrics = async () => {
-    const result = await NativeBiometric.isAvailable();
-
-    console.log("NativeBiometric.isAvailable", result);
-
-    if (!result.isAvailable) return;
-
-    try {
-      await NativeBiometric.verifyIdentity({
-        reason: "It is required to access to encrypted data on Keystore",
-        title: "Log in",
-        subtitle: "(required)",
-        description:
-          "Biometric step to be able to store encrypted keypair on Keystore and decrypt it",
-      });
-
-      console.log("Biometrics unlocked, settings credentials now");
-
-      await NativeBiometric.setCredentials({
-        username: credentials.username,
-        password: credentials.password,
-        server: "TEZOS",
-      });
-
-      console.log("Successfully store encrypted Keypair");
-    } catch (error) {
-      console.log("Biometrics failed", error);
-      return;
-    }
-  };
+  useEffect(() => {
+    if (!signer)
+      (async () => {
+        try {
+          if (!publicKey) {
+            try {
+              let publicKey = await NativeBiometric.getPublicKey();
+              setPublicKey(publicKey);
+              console.log("Public key : ", publicKey);
+            } catch (error) {
+              console.error(
+                "Public key is not initialized, need to initialize the account on the device the first time",
+                error
+              );
+              let publicKey = await NativeBiometric.init();
+              setPublicKey(publicKey);
+              console.log("Public key : ", publicKey);
+            }
+          }
+          const signer = new BiometricsSigner(publicKey!);
+          setSigner(signer);
+        } catch (error) {
+          console.error("Error on initializing the signer", error);
+        }
+      })();
+  }, []);
 
   const transfer = async () => {
     try {
@@ -98,7 +69,7 @@ const Home: React.FC = () => {
       });
       console.log("Transfer sent to alice");
       const opHash = await op.confirmation(1);
-      console.log("Confirmed go to https://ghostnet.tzkt.io/", opHash);
+      console.log("Confirmed go to https://ghostnet.tzkt.io/" + opHash);
     } catch (error) {
       console.error("Error", error);
     }
@@ -117,43 +88,23 @@ const Home: React.FC = () => {
             <IonTitle size="large">Blank</IonTitle>
           </IonToolbar>
         </IonHeader>
-        <IonButton onClick={generateCredentials}>
-          Generate TEZOS keypair
-        </IonButton>
-        <IonButton onClick={saveEncryptedKeyPairWithBiometrics}>
-          Save keypair with Biometrics
-        </IonButton>
-        <IonButton
-          onClick={async () => {
-            await NativeBiometric.deleteCredentials({
-              server: "TEZOS",
-            });
 
-            try {
-              await NativeBiometric.getCredentials({
-                server: "TEZOS",
-              });
-            } catch (error) {
-              setCredentials({
-                password: "",
-                username: "",
-              });
-            }
-          }}
-        >
-          Remove keypair
-        </IonButton>
         <div>Keypair :</div>
-        <div>PKH : {credentials.username}</div>
-        <div>PrivKey : {credentials.password}</div>
+        <div>PK : {publicKeyHash}</div>
+        <div>PK : {publicKey}</div>
+        <div>PrivKey : INSIDE OF YOUR PHONE SECURE ENCLAVE ...</div>
         <div>
           Balance : {userBalance}
           {"mutez "}
           <IonButton
             onClick={async () =>
-              setUserBalance(
-                (await Tezos.tz.getBalance(credentials.username)).toNumber()
-              )
+              publicKeyHash
+                ? setUserBalance(
+                    (await Tezos.tz.getBalance(publicKeyHash)).toNumber()
+                  )
+                : () => {
+                    console.warn("Initialize the public key first ...");
+                  }
             }
           >
             Refresh balance
