@@ -22,6 +22,7 @@
     "@capacitor/status-bar": "5.0.6",
     "@ionic/react": "^7.0.0",
     "@ionic/react-router": "^7.0.0",
+    "@stablelib/blake2b": "^1.0.1",
     "@taquito/beacon-wallet": "^17.5.2",
     "@taquito/signer": "^17.5.2",
     "@taquito/taquito": "^17.5.2",
@@ -33,7 +34,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router": "^5.3.4",
-    "react-router-dom": "^5.3.4"
+    "react-router-dom": "^5.3.4",
+    "typedarray-to-buffer": "^4.0.0"
   },
   "devDependencies": {
     "@airgap/beacon-types": "^4.1.0",
@@ -42,6 +44,7 @@
     "@types/node": "^20.11.1",
     "@types/react": "^18.2.47",
     "@types/react-dom": "^18.0.10",
+    "@types/typedarray-to-buffer": "^4.0.2",
     "@vitejs/plugin-legacy": "^5.0.0",
     "@vitejs/plugin-react": "^4.0.1",
     "@vitejs/plugin-react-swc": "^3.5.0",
