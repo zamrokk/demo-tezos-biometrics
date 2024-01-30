@@ -17,6 +17,6 @@
 	},
 	{
 		"pkg": "capacitor-native-biometric",
-		"classpath": "com.epicshaggy.biometric.NativeBiometric"
+		"classpath": "com.zamrokk.biometric.NativeBiometric"
 	}
 ]
