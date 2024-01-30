@@ -168,7 +168,7 @@ To use android's BiometricPrompt api you must add the following permission to yo
 And register the plugin by adding it to you MainActivity's onCreate (Not needed for Capacitor 3):
 
 ```java
-import com.zamrokk.biometric.NativeBiometric;
+import com.epicshaggy.biometric.NativeBiometric;
 
 public class MainActivity extends BridgeActivity {
   @Override
