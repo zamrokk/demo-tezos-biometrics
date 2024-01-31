@@ -77,7 +77,7 @@ export class BiometricsSigner implements Signer {
 
   async publicKey(): Promise<string> {
     if (this.pk) return this.pk;
-    else return await NativeBiometric.getPublicKey();
+    else return (await NativeBiometric.getPublicKey()).publicKey;
   }
 
   async secretKey(): Promise<string> {
