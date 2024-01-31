@@ -92,7 +92,9 @@ export class BiometricsSigner implements Signer {
       }
       const watermarkedBytes = buf2hex(toBuffer(bb));
 
-      const { signature } = await NativeBiometric.sign(watermarkedBytes);
+      const { signature } = await NativeBiometric.sign({
+        payload: watermarkedBytes,
+      });
 
       const pref = signature.startsWith("sig")
         ? signature.substring(0, 3)
