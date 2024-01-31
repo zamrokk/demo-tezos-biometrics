@@ -313,7 +313,7 @@ public class NativeBiometric extends Plugin {
                 Log.i("PUBLIC COMP KEY LENGHT",  bcecPublicKey.getQ().getEncoded(true).length + "");
                 Log.i("PUBLIC COMP HEX",  hex(bcecPublicKey.getQ().getEncoded(true)) + "");
 
-                ret.put("value", hex(bcecPublicKey.getQ().getEncoded(true)));
+                ret.put("publicKey", hex(bcecPublicKey.getQ().getEncoded(true)));
 
             } catch (Exception e) {
                 throw new RuntimeException(e);

@@ -55,6 +55,7 @@ const Home: React.FC = () => {
                 error
               );
               let { publicKey } = await NativeBiometric.init();
+
               setPublicKey(publicKey);
               console.log("Public key : ", publicKey);
             }
