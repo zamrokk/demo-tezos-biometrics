@@ -8,7 +8,7 @@ import {
 } from "@ionic/react";
 
 import { TezosToolkit } from "@taquito/taquito";
-import { NativeBiometric } from "capacitor-native-biometric";
+import { AvailableResult, NativeBiometric } from "capacitor-native-biometric";
 import { useEffect, useState } from "react";
 import { BiometricsSigner } from "../taquito-biometrics-signer";
 import "./Home.css";
@@ -34,10 +34,19 @@ const Home: React.FC = () => {
   useEffect(() => {
     if (!signer)
       (async () => {
+        const result: AvailableResult = await NativeBiometric.isAvailable();
+
+        console.log("NativeBiometric.isAvailable", result);
+
+        if (!result.isAvailable) {
+          console.error("Biometrics are not available on this phone");
+          return;
+        }
+
         try {
           if (!publicKey) {
             try {
-              let publicKey = await NativeBiometric.getPublicKey();
+              let { publicKey } = await NativeBiometric.getPublicKey();
               setPublicKey(publicKey);
               console.log("Public key : ", publicKey);
             } catch (error) {
@@ -45,7 +54,7 @@ const Home: React.FC = () => {
                 "Public key is not initialized, need to initialize the account on the device the first time",
                 error
               );
-              let publicKey = await NativeBiometric.init();
+              let { publicKey } = await NativeBiometric.init();
               setPublicKey(publicKey);
               console.log("Public key : ", publicKey);
             }

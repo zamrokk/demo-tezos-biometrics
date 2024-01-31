@@ -3,8 +3,12 @@ import { AvailableResult, BiometricOptions, NativeBiometricPlugin } from "./defi
 export declare class NativeBiometricWeb extends WebPlugin implements NativeBiometricPlugin {
     constructor();
     isAvailable(): Promise<AvailableResult>;
-    init(_options?: BiometricOptions): Promise<string>;
-    getPublicKey(): Promise<string>;
+    init(_options?: BiometricOptions): Promise<{
+        publicKey: string;
+    }>;
+    getPublicKey(): Promise<{
+        publicKey: string;
+    }>;
     sign(watermarkedBytes: string): Promise<{
         signature: string;
     }>;

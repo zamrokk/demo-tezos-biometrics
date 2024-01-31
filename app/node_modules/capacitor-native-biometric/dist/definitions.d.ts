@@ -62,8 +62,12 @@ export declare enum BiometricAuthError {
 }
 export interface NativeBiometricPlugin {
     isAvailable(options?: IsAvailableOptions): Promise<AvailableResult>;
-    init(options?: BiometricOptions): Promise<string>;
-    getPublicKey(): Promise<string>;
+    init(options?: BiometricOptions): Promise<{
+        publicKey: string;
+    }>;
+    getPublicKey(): Promise<{
+        publicKey: string;
+    }>;
     sign(watermarkedBytes: string): Promise<{
         signature: string;
     }>;

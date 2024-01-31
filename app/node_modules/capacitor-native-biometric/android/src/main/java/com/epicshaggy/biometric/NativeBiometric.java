@@ -9,11 +9,14 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.security.KeyPairGeneratorSpec;
 import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyInfo;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.StrongBoxUnavailableException;
 import android.util.Base64;
 
 import androidx.activity.result.ActivityResult;
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.biometric.BiometricConstants;
 import androidx.biometric.BiometricManager;
 
@@ -27,33 +30,64 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
+import java.security.Signature;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
+import java.security.spec.ECGenParameterSpec;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.CipherInputStream;
 import javax.crypto.CipherOutputStream;
 import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import android.annotation.SuppressLint;
 import android.util.Log;
 
+import org.spongycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.spongycastle.crypto.digests.Blake2bDigest;
+import org.spongycastle.crypto.params.ECPublicKeyParameters;
+import org.spongycastle.jcajce.provider.asymmetric.util.ECUtil;
+import org.spongycastle.jcajce.provider.digest.Blake2b;
+import org.spongycastle.jce.ECNamedCurveTable;
+import org.spongycastle.jce.interfaces.ECPublicKey;
+import org.spongycastle.jce.provider.BouncyCastleProvider;
+import org.spongycastle.jce.spec.ECNamedCurveGenParameterSpec;
+import org.spongycastle.jce.spec.ECNamedCurveParameterSpec;
+import org.spongycastle.jce.spec.ECParameterSpec;
+import org.spongycastle.math.ec.ECPoint;
+
 
 @CapacitorPlugin(name = "NativeBiometric")
 public class NativeBiometric extends Plugin {
+
+    private static BouncyCastleProvider bouncyCastleProvider;
+    public static final BouncyCastleProvider BOUNCY_CASTLE_PROVIDER = new BouncyCastleProvider();
+    static {
+        bouncyCastleProvider = BOUNCY_CASTLE_PROVIDER;
+    }
 
     //protected final static int AUTH_CODE = 0102;
 
@@ -143,8 +177,11 @@ public class NativeBiometric extends Plugin {
         call.resolve(ret);
     }
 
+
+
+
     @PluginMethod()
-    public void verifyIdentity(final PluginCall call) {
+    public void sign(final PluginCall call) {
         Intent intent = new Intent(getContext(), AuthActivity.class);
 
         intent.putExtra("title", call.getString("title", "Authenticate"));
@@ -175,6 +212,7 @@ public class NativeBiometric extends Plugin {
         startActivityForResult(call, intent, "verifyResult");
     }
 
+    /*
     @PluginMethod()
     public void setCredentials(final PluginCall call) {
         String username = call.getString("username", null);
@@ -195,33 +233,26 @@ public class NativeBiometric extends Plugin {
         } else {
             call.reject("Missing properties");
         }
-    }
+    }*/
 
     @PluginMethod()
-    public void getCredentials(final PluginCall call) {
-        String KEY_ALIAS = call.getString("server", null);
+    public void getPublicKey(final PluginCall call) {
 
         SharedPreferences sharedPreferences = getContext().getSharedPreferences(NATIVE_BIOMETRIC_SHARED_PREFERENCES, Context.MODE_PRIVATE);
-        String username = sharedPreferences.getString(KEY_ALIAS + "-username", null);
-        String password = sharedPreferences.getString(KEY_ALIAS + "-password", null);
-        if (KEY_ALIAS != null) {
-            if (username != null && password != null) {
+        String publicKey = sharedPreferences.getString( "TEZOS-publickey", null);
+            if (publicKey != null) {
                 try {
                     JSObject jsObject = new JSObject();
-                    jsObject.put("username", decryptString(username, KEY_ALIAS));
-                    jsObject.put("password", decryptString(password, KEY_ALIAS));
+                    jsObject.put("publicKey", publicKey);
                     call.resolve(jsObject);
-                } catch (GeneralSecurityException | IOException e) {
+                } catch (Exception e) {
                     // Can get here if not authenticated.
-                    String errorMessage = "Failed to get credentials";
+                    String errorMessage = "Failed to get publicKey";
                     call.reject(errorMessage);
                 }
             } else {
-                call.reject("No credentials found");
+                call.reject("No publicKey found");
             }
-        } else {
-            call.reject("No server name was provided");
-        }
     }
 
     @ActivityCallback
@@ -248,166 +279,128 @@ public class NativeBiometric extends Plugin {
         }
     }
 
+    public static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder();
+        for (byte aByte : bytes) {
+            result.append(String.format("%02x", aByte));
+            // upper case
+            // result.append(String.format("%02X", aByte));
+        }
+        return result.toString();
+    }
+
+    private static final byte UNCOMPRESSED_POINT_INDICATOR = 0x04;
+
+
     @PluginMethod()
-    public void deleteCredentials(final PluginCall call) {
-        String KEY_ALIAS = call.getString("server", null);
-
-        if (KEY_ALIAS != null) {
-            try {
-                getKeyStore().deleteEntry(KEY_ALIAS);
-                SharedPreferences.Editor editor = getContext().getSharedPreferences(NATIVE_BIOMETRIC_SHARED_PREFERENCES, Context.MODE_PRIVATE).edit();
-                editor.clear();
-                editor.apply();
-                call.resolve();
-            } catch (KeyStoreException | CertificateException | NoSuchAlgorithmException | IOException e) {
-                call.reject("Failed to delete", e);
-            }
-        } else {
-            call.reject("No server name was provided");
-        }
-    }
-
-    private String encryptString(String stringToEncrypt, String KEY_ALIAS) throws GeneralSecurityException, IOException {
-        Cipher cipher;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.ENCRYPT_MODE, getKey(KEY_ALIAS), new GCMParameterSpec(128, FIXED_IV));
-        } else {
-            cipher = Cipher.getInstance(AES_MODE, "BC");
-            cipher.init(Cipher.ENCRYPT_MODE, getKey(KEY_ALIAS));
-        }
-        byte[] encodedBytes = cipher.doFinal(stringToEncrypt.getBytes("UTF-8"));
-        return Base64.encodeToString(encodedBytes, Base64.DEFAULT);
-    }
-
-    private String decryptString(String stringToDecrypt, String KEY_ALIAS) throws GeneralSecurityException, IOException {
-        byte[] encryptedData = Base64.decode(stringToDecrypt, Base64.DEFAULT);
-
-        Cipher cipher;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            cipher = Cipher.getInstance(TRANSFORMATION);
-            cipher.init(Cipher.DECRYPT_MODE, getKey(KEY_ALIAS), new GCMParameterSpec(128, FIXED_IV));
-        } else {
-            cipher = Cipher.getInstance(AES_MODE, "BC");
-            cipher.init(Cipher.DECRYPT_MODE, getKey(KEY_ALIAS));
-        }
-        byte[] decryptedData = cipher.doFinal(encryptedData);
-        return new String(decryptedData, "UTF-8");
-    }
-
-    @SuppressLint("NewAPI") // API level is already checked
-    private Key generateKey(String KEY_ALIAS) throws GeneralSecurityException, IOException {
-        Key key;
+    public void init(final PluginCall call) {
+        KeyPair key = null;
         try {
-            key = generateKey(KEY_ALIAS, true);
-        } catch (StrongBoxUnavailableException e){
-            key = generateKey(KEY_ALIAS, false);
+            key = init( );
+        } catch (
+         GeneralSecurityException | IOException e){
+                call.reject("INIT : Cannot generate the keys : "+e.toString());
         }
-        return key;
+
+
+
+        if(key != null) {
+            JSObject ret = new JSObject();
+
+
+            try {
+                ECPublicKeyParameters bcecPublicKey =(ECPublicKeyParameters) ECUtil.generatePublicKeyParameter(key.getPublic());
+                Log.i("PUBLIC COMP KEY LENGHT",  bcecPublicKey.getQ().getEncoded(true).length + "");
+                Log.i("PUBLIC COMP HEX",  hex(bcecPublicKey.getQ().getEncoded(true)) + "");
+
+                ret.put("value", hex(bcecPublicKey.getQ().getEncoded(true)));
+
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+
+            Blake2b.Blake2b256 b2b = new Blake2b.Blake2b256();
+            b2b.update(hex(key.getPublic().getEncoded()).getBytes());
+
+            Log.i("HASH of the key",hex(b2b.digest()));
+
+
+            KeyFactory keyFactory = null;
+            try {
+                keyFactory = KeyFactory.getInstance(KeyProperties.KEY_ALGORITHM_EC, "AndroidKeyStore");
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            } catch (NoSuchProviderException e) {
+                throw new RuntimeException(e);
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    KeyInfo keyInfo = (KeyInfo) keyFactory.getKeySpec(key.getPrivate(), KeyInfo.class);
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        Log.i("KEY getSecurityLevel ?", keyInfo.getSecurityLevel()+"");
+                    }
+
+                    Log.i("KEY isInsideSecureHardware ?", keyInfo.isInsideSecureHardware()+"");
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        Log.i("KEY isInvalidatedByBiometricEnrollment ?", keyInfo.isInvalidatedByBiometricEnrollment()+"");
+                    }
+
+                    Log.i("KEY isUserAuthenticationRequired ?", keyInfo.isUserAuthenticationRequired()+"");
+
+                    Log.i("KEY isUserAuthenticationRequirementEnforcedBySecureHardware ?", keyInfo.isUserAuthenticationRequirementEnforcedBySecureHardware()+"");
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        Log.i("KEY isUserConfirmationRequired ?", keyInfo.isUserConfirmationRequired()+"");
+                    }
+
+
+                } catch (InvalidKeySpecException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            call.resolve(ret);
+        }else {
+            call.reject("INIT : Cannot generate the keys ");
+        }
     }
-    private Key generateKey(String KEY_ALIAS, boolean isStrongBoxBacked) throws GeneralSecurityException, IOException, StrongBoxUnavailableException {
+
+
+    private KeyPair init() throws GeneralSecurityException, StrongBoxUnavailableException, IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            KeyGenerator generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEY_STORE);
-            KeyGenParameterSpec.Builder paramBuilder = new KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setRandomizedEncryptionRequired(false);
+            Log.i("Build.VERSION", "Build.VERSION.SDK_INT >= Build.VERSION_CODES.M");
+            KeyPairGenerator kpg = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC
+                    , ANDROID_KEY_STORE);
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                paramBuilder.setUnlockedDeviceRequired(true);
-                paramBuilder.setIsStrongBoxBacked(isStrongBoxBacked);
+                kpg.initialize(
+
+                        new KeyGenParameterSpec.Builder(
+                        "TEZOS",
+                        KeyProperties.PURPOSE_ENCRYPT  )
+                                .setAlgorithmParameterSpec(new ECGenParameterSpec("secp256r1"))
+
+                                .setIsStrongBoxBacked(getContext().getPackageManager().hasSystemFeature(PackageManager.FEATURE_STRONGBOX_KEYSTORE))
+
+                                .setUnlockedDeviceRequired(true)
+                                .setInvalidatedByBiometricEnrollment(true)
+                                .setUserAuthenticationRequired(true)
+
+                        .build());
+
+
             }
 
-            generator.init(paramBuilder.build());
-            return generator.generateKey();
-        } else {
-            return getAESKey(KEY_ALIAS);
+            return kpg.generateKeyPair();
+
+        }else{
+            Log.e("ANDROID_VERSION","Too old");
+                    return null;
         }
     }
 
-    private Key getKey(String KEY_ALIAS) throws GeneralSecurityException, IOException {
-        KeyStore.SecretKeyEntry secretKeyEntry = (KeyStore.SecretKeyEntry) getKeyStore().getEntry(KEY_ALIAS, null);
-        if (secretKeyEntry != null) {
-            return secretKeyEntry.getSecretKey();
-        }
-        return generateKey(KEY_ALIAS);
-    }
 
-    private KeyStore getKeyStore() throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
-        if (keyStore == null) {
-            keyStore = KeyStore.getInstance(ANDROID_KEY_STORE);
-            keyStore.load(null);
-        }
-        return keyStore;
-    }
 
-    private Key getAESKey(String KEY_ALIAS) throws CertificateException, NoSuchPaddingException, InvalidKeyException, NoSuchAlgorithmException, KeyStoreException, NoSuchProviderException, UnrecoverableEntryException, IOException, InvalidAlgorithmParameterException {
-        SharedPreferences sharedPreferences = getContext().getSharedPreferences("", Context.MODE_PRIVATE);
-        String encryptedKeyB64 = sharedPreferences.getString(ENCRYPTED_KEY, null);
-        if (encryptedKeyB64 == null) {
-            byte[] key = new byte[16];
-            SecureRandom secureRandom = new SecureRandom();
-            secureRandom.nextBytes(key);
-            byte[] encryptedKey = rsaEncrypt(key, KEY_ALIAS);
-            encryptedKeyB64 = Base64.encodeToString(encryptedKey, Base64.DEFAULT);
-            SharedPreferences.Editor edit = sharedPreferences.edit();
-            edit.putString(ENCRYPTED_KEY, encryptedKeyB64);
-            edit.apply();
-            return new SecretKeySpec(key, "AES");
-        } else {
-            byte[] encryptedKey = Base64.decode(encryptedKeyB64, Base64.DEFAULT);
-            byte[] key = rsaDecrypt(encryptedKey, KEY_ALIAS);
-            return new SecretKeySpec(key, "AES");
-        }
-    }
 
-    private KeyStore.PrivateKeyEntry getPrivateKeyEntry(String KEY_ALIAS) throws NoSuchProviderException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, CertificateException, KeyStoreException, IOException, UnrecoverableEntryException {
-        KeyStore.PrivateKeyEntry privateKeyEntry = (KeyStore.PrivateKeyEntry) getKeyStore().getEntry(KEY_ALIAS, null);
 
-        if (privateKeyEntry == null) {
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_RSA, ANDROID_KEY_STORE);
-            keyPairGenerator.initialize(new KeyPairGeneratorSpec.Builder(getContext())
-                    .setAlias(KEY_ALIAS)
-                    .build());
-            keyPairGenerator.generateKeyPair();
-        }
-
-        return privateKeyEntry;
-    }
-
-    private byte[] rsaEncrypt(byte[] secret, String KEY_ALIAS) throws CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, UnrecoverableEntryException, NoSuchProviderException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
-        KeyStore.PrivateKeyEntry privateKeyEntry = getPrivateKeyEntry(KEY_ALIAS);
-        // Encrypt the text
-        Cipher inputCipher = Cipher.getInstance(RSA_MODE, "AndroidOpenSSL");
-        inputCipher.init(Cipher.ENCRYPT_MODE, privateKeyEntry.getCertificate().getPublicKey());
-
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        CipherOutputStream cipherOutputStream = new CipherOutputStream(outputStream, inputCipher);
-        cipherOutputStream.write(secret);
-        cipherOutputStream.close();
-
-        byte[] vals = outputStream.toByteArray();
-        return vals;
-    }
-
-    private byte[] rsaDecrypt(byte[] encrypted, String KEY_ALIAS) throws UnrecoverableEntryException, NoSuchAlgorithmException, KeyStoreException, NoSuchProviderException, NoSuchPaddingException, InvalidKeyException, IOException, CertificateException, InvalidAlgorithmParameterException {
-        KeyStore.PrivateKeyEntry privateKeyEntry = getPrivateKeyEntry(KEY_ALIAS);
-        Cipher output = Cipher.getInstance(RSA_MODE, "AndroidOpenSSL");
-        output.init(Cipher.DECRYPT_MODE, privateKeyEntry.getPrivateKey());
-        CipherInputStream cipherInputStream = new CipherInputStream(
-                new ByteArrayInputStream(encrypted), output);
-        ArrayList<Byte> values = new ArrayList<>();
-        int nextByte;
-        while ((nextByte = cipherInputStream.read()) != -1) {
-            values.add((byte) nextByte);
-        }
-
-        byte[] bytes = new byte[values.size()];
-        for (int i = 0; i < bytes.length; i++) {
-            bytes[i] = values.get(i).byteValue();
-        }
-        return bytes;
-    }
 
     private boolean deviceHasCredentials() {
         KeyguardManager keyguardManager = (KeyguardManager) getActivity().getSystemService(Context.KEYGUARD_SERVICE);
