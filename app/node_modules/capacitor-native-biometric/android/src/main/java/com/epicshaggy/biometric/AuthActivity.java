@@ -29,6 +29,7 @@ import java.security.Key;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.UnrecoverableEntryException;
 import java.security.cert.CertificateException;
 import java.util.Arrays;
@@ -44,6 +45,9 @@ public class AuthActivity extends AppCompatActivity {
     private Executor executor;
     private int maxAttempts;
     private int counter = 0;
+
+    private static final String ANDROID_KEY_STORE = "AndroidKeyStore";
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -156,11 +160,11 @@ public class AuthActivity extends AppCompatActivity {
         Cipher cipher = null;
 
         try {
-            cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_EC);
 
-            ks = KeyStore.getInstance("AndroidKeyStore");
+            ks = KeyStore.getInstance(ANDROID_KEY_STORE);
             ks.load(null);
 
+            cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_EC,ANDROID_KEY_STORE);
             Key key = ks.getKey("TEZOS",null);
             cipher.init(Cipher.ENCRYPT_MODE, key);
 
@@ -177,6 +181,8 @@ public class AuthActivity extends AppCompatActivity {
         } catch (NoSuchPaddingException e) {
             throw new RuntimeException(e);
         } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchProviderException e) {
             throw new RuntimeException(e);
         }
 
