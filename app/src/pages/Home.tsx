@@ -8,6 +8,7 @@ import {
 } from "@ionic/react";
 
 import { TezosToolkit } from "@taquito/taquito";
+import { b58cencode, Prefix, prefix } from "@taquito/utils";
 import { AvailableResult, NativeBiometric } from "capacitor-native-biometric";
 import { useEffect, useState } from "react";
 import { BiometricsSigner } from "../taquito-biometrics-signer";
@@ -56,8 +57,11 @@ const Home: React.FC = () => {
               );
               let { publicKey } = await NativeBiometric.init();
 
-              setPublicKey(publicKey);
-              console.log("Public key : ", publicKey);
+              //convert raw hex bytes to Tezos key representation
+              const pkTezos = b58cencode(publicKey, prefix[Prefix.P2PK]);
+
+              setPublicKey(pkTezos);
+              console.log("Public key : ", pkTezos);
             }
           }
           const signer = new BiometricsSigner(publicKey!);
