@@ -45,6 +45,7 @@ const Home: React.FC = () => {
         }
 
         try {
+          let pkTezos = publicKey;
           if (!publicKey) {
             try {
               let { publicKey } = await NativeBiometric.getPublicKey();
@@ -58,14 +59,13 @@ const Home: React.FC = () => {
               let { publicKey } = await NativeBiometric.init();
 
               //convert raw hex bytes to Tezos key representation
-              const pkTezos = b58cencode(publicKey, prefix[Prefix.P2PK]);
-              publicKey = pkTezos;
+              pkTezos = b58cencode(publicKey, prefix[Prefix.P2PK]);
 
-              setPublicKey(publicKey);
-              console.log("Public key : ", publicKey);
+              setPublicKey(pkTezos);
+              console.log("Public key : ", pkTezos);
             }
           }
-          const signer = new BiometricsSigner(publicKey!);
+          const signer = new BiometricsSigner(pkTezos!);
           setSigner(signer);
         } catch (error) {
           console.error("Error on initializing the signer", error);
