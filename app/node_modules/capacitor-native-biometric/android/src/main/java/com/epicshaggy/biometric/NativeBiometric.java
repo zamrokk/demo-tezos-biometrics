@@ -184,30 +184,11 @@ public class NativeBiometric extends Plugin {
     public void sign(final PluginCall call) {
         Intent intent = new Intent(getContext(), AuthActivity.class);
 
-        intent.putExtra("title", call.getString("title", "Authenticate"));
-
-        if (call.hasOption("subtitle")) {
-            intent.putExtra("subtitle", call.getString("subtitle"));
+        if (call.hasOption("payload")) {
+            intent.putExtra("payload", call.getString("payload"));
         }
 
-        if (call.hasOption("description")) {
-            intent.putExtra("description", call.getString("description"));
-        }
-
-        if (call.hasOption("negativeButtonText")) {
-            intent.putExtra("negativeButtonText", call.getString("negativeButtonText"));
-        }
-
-        if (call.hasOption("maxAttempts")) {
-            intent.putExtra("maxAttempts", call.getInt("maxAttempts"));
-        }
-
-        boolean useFallback = Boolean.TRUE.equals(call.getBoolean("useFallback", false));
-        if (useFallback) {
-            useFallback = this.deviceHasCredentials();
-        }
-
-        intent.putExtra("useFallback", useFallback);
+        Log.i("sign",call.getString("payload"));
 
         startActivityForResult(call, intent, "verifyResult");
     }
@@ -262,6 +243,10 @@ public class NativeBiometric extends Plugin {
             if (data != null && data.hasExtra("result")) {
                 switch (data.getStringExtra("result")) {
                     case "success":
+                        JSObject jsObject = new JSObject();
+                        String signature = data.getStringExtra("signature");
+                        jsObject.put("signature", signature);
+                        Log.i("SUCCESS signature",signature);
                         call.resolve();
                         break;
                     case "failed":
@@ -319,10 +304,7 @@ public class NativeBiometric extends Plugin {
                 throw new RuntimeException(e);
             }
 
-            Blake2b.Blake2b256 b2b = new Blake2b.Blake2b256();
-            b2b.update(hex(key.getPublic().getEncoded()).getBytes());
 
-            Log.i("HASH of the key",hex(b2b.digest()));
 
 
             KeyFactory keyFactory = null;

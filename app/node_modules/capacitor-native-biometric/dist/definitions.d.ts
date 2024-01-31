@@ -68,7 +68,9 @@ export interface NativeBiometricPlugin {
     getPublicKey(): Promise<{
         publicKey: string;
     }>;
-    sign(watermarkedBytes: string): Promise<{
+    sign(options: {
+        payload: string;
+    }): Promise<{
         signature: string;
     }>;
 }

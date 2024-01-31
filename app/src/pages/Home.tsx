@@ -28,7 +28,11 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     (async () => {
-      if (publicKey) setPublicKeyHash(await signer?.publicKeyHash());
+      if (publicKey) {
+        const pkh = await signer?.publicKeyHash();
+        setPublicKeyHash(pkh);
+        console.log("pkh", pkh);
+      }
     })();
   }, [publicKey]);
 
@@ -67,6 +71,8 @@ const Home: React.FC = () => {
           }
           const signer = new BiometricsSigner(pkTezos!);
           setSigner(signer);
+          Tezos.setSignerProvider(signer);
+          setTezos(Tezos);
         } catch (error) {
           console.error("Error on initializing the signer", error);
         }
@@ -105,7 +111,7 @@ const Home: React.FC = () => {
         </IonHeader>
 
         <div>Keypair :</div>
-        <div>PK : {publicKeyHash}</div>
+        <div>PKH : {publicKeyHash}</div>
         <div>PK : {publicKey}</div>
         <div>PrivKey : INSIDE OF YOUR PHONE SECURE ENCLAVE ...</div>
         <div>

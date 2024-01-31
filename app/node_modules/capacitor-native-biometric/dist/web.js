@@ -14,8 +14,8 @@ export class NativeBiometricWeb extends WebPlugin {
         throw new Error("Method not implemented.");
     }
     //sign payload with optional magic bytes
-    sign(watermarkedBytes) {
-        throw new Error("Method not implemented." + watermarkedBytes);
+    sign(options) {
+        throw new Error("Method not implemented." + options);
     }
 }
 //# sourceMappingURL=web.js.map

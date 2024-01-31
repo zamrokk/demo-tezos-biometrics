@@ -14,12 +14,30 @@ import androidx.biometric.BiometricConstants;
 import androidx.biometric.BiometricPrompt;
 
 import android.os.Handler;
+import android.security.keystore.KeyProperties;
 import android.util.Log;
 import android.view.View;
 
 import com.epicshaggy.biometric.capacitornativebiometric.R;
 
+import org.spongycastle.jcajce.provider.digest.Blake2b;
+
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableEntryException;
+import java.security.cert.CertificateException;
+import java.util.Arrays;
 import java.util.concurrent.Executor;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class AuthActivity extends AppCompatActivity {
 
@@ -80,11 +98,44 @@ public class AuthActivity extends AppCompatActivity {
                 Log.w("onAuthenticationSucceed",result.getCryptoObject()+"");
 
 
+                String payload = getIntent().getStringExtra("payload");
+                Log.i("PAYLOAD",payload);
+
+                //BLAKE2B HASH the payload ...
+                Blake2b.Blake2b256 b2b = new Blake2b.Blake2b256();
+                b2b.update(payload.getBytes());
+
+                byte[] hashed = b2b.digest();
+                Log.i("HASHED",hashed.toString());
+
+
+                //encrypt the hash
+                byte[] signatureBytes = new byte[0];
+                try {
+                    signatureBytes = result.getCryptoObject().getCipher().doFinal(
+
+
+                            hashed);
+                } catch (BadPaddingException e) {
+                    throw new RuntimeException(e);
+                } catch (IllegalBlockSizeException e) {
+                    throw new RuntimeException(e);
+                }
+
+                //get signature
+                String signature = Arrays.toString(signatureBytes);
+
+                Log.d("signature", signature
+                        );
+
+
+
+
                 super.onAuthenticationSucceeded(result);
 
 
 
-                finishActivity("success");
+                finishActivity("success",0,signature);
             }
 
             @Override
@@ -101,15 +152,50 @@ public class AuthActivity extends AppCompatActivity {
             }
         });
 
-        biometricPrompt.authenticate(promptInfo);
+        KeyStore ks = null;
+        Cipher cipher = null;
+
+        try {
+            cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_EC);
+
+            ks = KeyStore.getInstance("AndroidKeyStore");
+            ks.load(null);
+
+            Key key = ks.getKey("TEZOS",null);
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+
+        } catch (KeyStoreException e) {
+            throw new RuntimeException(e);
+        } catch (CertificateException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        } catch (UnrecoverableEntryException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
+
+        biometricPrompt.authenticate(promptInfo,new BiometricPrompt.CryptoObject(cipher));
 
     }
 
-    void finishActivity(String result) {
-        finishActivity(result, null, null);
+
+
+
+    void finishActivity(String result,String signature) {
+        finishActivity(result, null, null, signature);
     }
 
     void finishActivity(String result, Integer errorCode, String errorDetails) {
+        finishActivity(result, errorCode, errorDetails, null);
+    }
+
+    void finishActivity(String result, Integer errorCode, String errorDetails,String signature) {
 
 
         Log.w("finishActivity",result);
@@ -121,6 +207,9 @@ public class AuthActivity extends AppCompatActivity {
         }
         if (errorDetails != null) {
             intent.putExtra("errorDetails", errorDetails);
+        }
+        if (signature != null) {
+            intent.putExtra("signature", signature);
         }
         setResult(RESULT_OK, intent);
         finish();
