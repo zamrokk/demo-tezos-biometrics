@@ -59,9 +59,10 @@ const Home: React.FC = () => {
 
               //convert raw hex bytes to Tezos key representation
               const pkTezos = b58cencode(publicKey, prefix[Prefix.P2PK]);
+              publicKey = pkTezos;
 
-              setPublicKey(pkTezos);
-              console.log("Public key : ", pkTezos);
+              setPublicKey(publicKey);
+              console.log("Public key : ", publicKey);
             }
           }
           const signer = new BiometricsSigner(publicKey!);
