@@ -20,3 +20,19 @@ to build.gradle
     implementation 'com.madgag.spongycastle:core:1.58.0.0'
     implementation 'com.madgag.spongycastle:prov:1.58.0.0'
 ```
+
+Refresh lib
+
+```
+npm i capacitor-native-biometric@git+https:github.com/zamrokk/capacitor-native-biometric.git
+```
+
+Compile
+
+```
+ionic capacitor update android
+ionic capacitor sync android
+git add .
+git commit -m "."
+git push
+```
